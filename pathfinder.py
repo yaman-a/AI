@@ -3,9 +3,6 @@ import heapq as pq
 from collections import deque
 import math
 
-STUDENT_ID = 'a1884774' # your student ID
-DEGREE = 'UG' # or PG if you are in the postgraduate course
-
 def manhattan(pos1, pos2):
     return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
@@ -90,7 +87,7 @@ def ucs(grid, start, goal, size):
     curr_cost = {start: 0}
 
     while q:
-        current_cost, _, current = pq.heappop(q)
+        curr_cost, _, current = pq.heappop(q)
 
         if current == goal:
             return reconstruct_path(dest_start, current)
@@ -108,13 +105,15 @@ def ucs(grid, start, goal, size):
                 from_e = int(grid[i][j])
                 to_e = int(grid[ni][nj])
                 step = path_cost(from_e, to_e)
-                new_cost = current_cost + step
+                new_cost = curr_cost + step
 
                 if neighbor not in curr_cost or new_cost < curr_cost[neighbor]:
                     curr_cost[neighbor] = new_cost
                     dest_start[neighbor] = current
                     pq.heappush(q, (new_cost, count, neighbor))
                     count += 1
+
+    return None 
 
 def reconstruct_path(dest_start, current):
     path = [current]
@@ -125,22 +124,17 @@ def reconstruct_path(dest_start, current):
     
 def astar(grid, start, goal, size, heuristic):
     count = 0
-
     rows, cols = size
 
     open_set = []
     pq.heappush(open_set, (heuristic(start, goal), count, start))
+    count += 1
 
     dest_start = {}
-
     g_score = {start: 0}
-    f_score = {start: heuristic(start, goal)}
-
-    in_oset = {start}
 
     while open_set:
         _, _, current = pq.heappop(open_set)
-        in_oset.discard(current)
 
         if current == goal:
             return reconstruct_path(dest_start, current)
@@ -158,17 +152,15 @@ def astar(grid, start, goal, size, heuristic):
                 from_e = int(grid[i][j])
                 to_e = int(grid[ni][nj])
                 move_cost = path_cost(from_e, to_e)
-
                 notconfirmed_g = g_score[current] + move_cost
 
                 if notconfirmed_g < g_score.get(neighbor, float('inf')):
                     dest_start[neighbor] = current
                     g_score[neighbor] = notconfirmed_g
-                    f_score[neighbor] = notconfirmed_g + heuristic(neighbor, goal)
-                    if neighbor not in in_oset:
-                        count += 1
-                        pq.heappush(open_set, (f_score[neighbor], count, neighbor))
-                        in_oset.add(neighbor)
+                    pq.heappush(open_set, (notconfirmed_g + heuristic(neighbor, goal), count, neighbor))
+                    count += 1
+
+    return None
 
 def graph_search():
     print('graph_search')
