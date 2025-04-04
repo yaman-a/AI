@@ -219,7 +219,6 @@ def main():
             for row in grid:
                 print(" ".join(row))
         else:
-            print("path:")
             print("null")
         
 
