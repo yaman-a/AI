@@ -2,10 +2,6 @@ import sys
 import heapq as pq
 from collections import deque
 import math
-
-STUDENT_ID = 'a1884774' # your student ID
-DEGREE = 'UG' # or PG if you are in the postgraduate course
-
 def manhattan(pos1, pos2):
     return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
@@ -87,10 +83,10 @@ def ucs(grid, start, goal, size):
     count += 1
 
     dest_start = {}
-    curr_cost = {start: 0}
+    cost_so_far = {start: 0}
 
     while q:
-        curr_cost, _, current = pq.heappop(q)
+        current_cost, _, current = pq.heappop(q)
 
         if current == goal:
             return reconstruct_path(dest_start, current)
@@ -108,15 +104,16 @@ def ucs(grid, start, goal, size):
                 from_e = int(grid[i][j])
                 to_e = int(grid[ni][nj])
                 step = path_cost(from_e, to_e)
-                new_cost = curr_cost + step
+                new_cost = cost_so_far[current] + step
 
-                if neighbor not in curr_cost or new_cost < curr_cost[neighbor]:
-                    curr_cost[neighbor] = new_cost
+                if neighbor not in cost_so_far or new_cost < cost_so_far[neighbor]:
+                    cost_so_far[neighbor] = new_cost
                     dest_start[neighbor] = current
                     pq.heappush(q, (new_cost, count, neighbor))
                     count += 1
 
-    return None 
+    return None
+
 
 def reconstruct_path(dest_start, current):
     path = [current]
