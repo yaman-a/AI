@@ -2,6 +2,10 @@ import sys
 import heapq as pq
 from collections import deque
 import math
+
+STUDENT_ID = 'a1884774' # your student ID
+DEGREE = 'UG' # or PG if you are in the postgraduate course
+
 def manhattan(pos1, pos2):
     return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
