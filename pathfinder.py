@@ -203,7 +203,6 @@ def main():
         print("Invalid algorithm. Use 'bfs', 'ucs', or 'astar'.")
         return
 
-    # Output
     if mode == 'debug':
         print("path:")
         if path:
@@ -214,7 +213,6 @@ def main():
         else:
             print("null")
 
-        # TODO: Add #visits, first visit, last visit here if needed
         print("#visits:\n...")
         print("first visit:\n...")
         print("last visit:\n...")
