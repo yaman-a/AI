@@ -3,9 +3,6 @@ import heapq as pq
 from collections import deque
 import math
 
-STUDENT_ID = 'a1884774' # your student ID
-DEGREE = 'UG' # or PG if you are in the postgraduate course
-
 def manhattan(pos1, pos2):
     return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
 
@@ -17,7 +14,6 @@ def euclidean(pos1, pos2):
 #     q.append((start, []))
 
 #     seen = set()
-    
     
 #     while len(q):
 #         a = q.popleft()
@@ -66,9 +62,9 @@ def bfs(graph, start, end, n):
 
         seen.add(current)
 
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)] 
+        dirs = [(-1, 0), (1, 0), (0, -1), (0, 1)] 
 
-        for dx, dy in directions:
+        for dx, dy in dirs:
             ni, nj = i + dx, j + dy
             if 0 <= ni < rows and 0 <= nj < cols:
                 neighbor = (ni, nj)
@@ -79,89 +75,97 @@ def bfs(graph, start, end, n):
 def path_cost(from_node, to_node):
     return 1 + max(0, to_node - from_node)
 
-def ucs(graph, start, end, n):
-    rows, cols = n
-    fringe = []
-    pq.heappush(fringe, (0, start, []))
-
-    seen = {}
-
-    while fringe:
-        total_cost, current, path = pq.heappop(fringe)
-        i, j = current
-
-        if current in seen and seen[current] <= total_cost:
-            continue
-        seen[current] = total_cost
-
-        new_path = path + [current]
-
-        if current == end:
-            return new_path
-
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-
-        for dx, dy in directions:
-            ni, nj = i + dx, j + dy
-            if 0 <= ni < rows and 0 <= nj < cols:
-                neighbor = (ni, nj)
-                if graph[ni][nj] != 'X':
-                    from_elev = int(graph[i][j])
-                    to_elev = int(graph[ni][nj])
-                    step = path_cost(from_elev, to_elev)
-                    pq.heappush(fringe, (total_cost + step, neighbor, new_path))
-
-def reconstruct_path(came_from, current):
-    path = [current]
-    while current in came_from:
-        current = came_from[current]
-        path.append(current)
-    return path[::-1]
-    
-def astar(grid, start, goal, size, heuristic):
+def ucs(grid, start, goal, size):
+    count = 0
     rows, cols = size
 
-    open_set = []
-    pq.heappush(open_set, (heuristic(start, goal), start))
+    q = []
+    pq.heappush(q, (0, count, start))
+    count += 1
 
-    came_from = {}
+    dest_start = {}
+    curr_cost = {start: 0}
 
-    g_score = {start: 0}
-    f_score = {start: heuristic(start, goal)}
-
-    in_open_set = {start}
-
-    while open_set:
-        _, current = pq.heappop(open_set)
-        in_open_set.discard(current)
+    while q:
+        current_cost, _, current = pq.heappop(q)
 
         if current == goal:
-            return reconstruct_path(came_from, current)
+            return reconstruct_path(dest_start, current)
 
         i, j = current
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        dirs = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
-        for dx, dy in directions:
+        for dx, dy in dirs:
             ni, nj = i + dx, j + dy
             if 0 <= ni < rows and 0 <= nj < cols:
                 neighbor = (ni, nj)
                 if grid[ni][nj] == 'X':
                     continue
 
-                from_elev = int(grid[i][j])
-                to_elev = int(grid[ni][nj])
-                move_cost = path_cost(from_elev, to_elev)
+                from_e = int(grid[i][j])
+                to_e = int(grid[ni][nj])
+                step = path_cost(from_e, to_e)
+                new_cost = current_cost + step
 
-                tentative_g = g_score[current] + move_cost
+                if neighbor not in curr_cost or new_cost < curr_cost[neighbor]:
+                    curr_cost[neighbor] = new_cost
+                    dest_start[neighbor] = current
+                    pq.heappush(q, (new_cost, count, neighbor))
+                    count += 1
 
-                if tentative_g < g_score.get(neighbor, float('inf')):
-                    came_from[neighbor] = current
-                    g_score[neighbor] = tentative_g
-                    f_score[neighbor] = tentative_g + heuristic(neighbor, goal)
-                    if neighbor not in in_open_set:
-                        pq.heappush(open_set, (f_score[neighbor], neighbor))
-                        in_open_set.add(neighbor)
+def reconstruct_path(dest_start, current):
+    path = [current]
+    while current in dest_start:
+        current = dest_start[current]
+        path.append(current)
+    return path[::-1]
+    
+def astar(grid, start, goal, size, heuristic):
+    count = 0
 
+    rows, cols = size
+
+    open_set = []
+    pq.heappush(open_set, (heuristic(start, goal), count, start))
+
+    dest_start = {}
+
+    g_score = {start: 0}
+    f_score = {start: heuristic(start, goal)}
+
+    in_oset = {start}
+
+    while open_set:
+        _, _, current = pq.heappop(open_set)
+        in_oset.discard(current)
+
+        if current == goal:
+            return reconstruct_path(dest_start, current)
+
+        i, j = current
+        dirs = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+        for dx, dy in dirs:
+            ni, nj = i + dx, j + dy
+            if 0 <= ni < rows and 0 <= nj < cols:
+                neighbor = (ni, nj)
+                if grid[ni][nj] == 'X':
+                    continue
+
+                from_e = int(grid[i][j])
+                to_e = int(grid[ni][nj])
+                move_cost = path_cost(from_e, to_e)
+
+                notconfirmed_g = g_score[current] + move_cost
+
+                if notconfirmed_g < g_score.get(neighbor, float('inf')):
+                    dest_start[neighbor] = current
+                    g_score[neighbor] = notconfirmed_g
+                    f_score[neighbor] = notconfirmed_g + heuristic(neighbor, goal)
+                    if neighbor not in in_oset:
+                        count += 1
+                        pq.heappush(open_set, (f_score[neighbor], count, neighbor))
+                        in_oset.add(neighbor)
 
 def graph_search():
     print('graph_search')
@@ -172,7 +176,6 @@ def main():
     algo = sys.argv[3]
     heuristic = sys.argv[4] if len(sys.argv) > 4 else None
 
-    # Read map and positions
     with open(map_file, 'r') as f:
         lines = f.read().splitlines()
 
@@ -185,7 +188,6 @@ def main():
     end = (end_row - 1, end_col - 1)
     size = (grid_rows, grid_cols)
 
-    # Choose algorithm
     if algo == 'bfs':
         path = bfs(grid, start, end, size)
     elif algo == 'ucs':
@@ -195,13 +197,7 @@ def main():
             h_fn = euclidean
         elif heuristic == 'manhattan':
             h_fn = manhattan
-        else:
-            print("Invalid heuristic. Use 'euclidean' or 'manhattan'.")
-            return
         path = astar(grid, start, end, size, h_fn)
-    else:
-        print("Invalid algorithm. Use 'bfs', 'ucs', or 'astar'.")
-        return
 
     if mode == 'debug':
         print("path:")
@@ -226,8 +222,6 @@ def main():
         else:
             print("path:")
             print("null")
-    else:
-        print("Invalid mode. Use 'debug' or 'release'.")
         
 
 if __name__ == "__main__":
