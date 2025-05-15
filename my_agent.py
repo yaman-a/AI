@@ -7,7 +7,7 @@ from console import FlappyBirdEnv
 import random
 from collections import deque
 
-STUDENT_ID = 'a1884774'
+STUDENT_ID = 'a1234567'
 DEGREE = 'UG'  # or 'PG'
 
 
@@ -135,42 +135,30 @@ class MyAgent:
 
         # sample a minibatch
         batch = random.sample(self.storage, k=self.n)
-
         states, actions, rewards, next_states, dones = zip(*batch)
 
-        states = np.array(states)
-        next_states = np.array(next_states)
-        rewards = np.array(rewards)
-        dones = np.array(dones)
+        states_tensor = torch.tensor(states, dtype=torch.float32)
+        next_states_tensor = torch.tensor(next_states, dtype=torch.float32)
+        actions_tensor = torch.tensor(actions, dtype=torch.int64)
+        rewards_tensor = torch.tensor(rewards, dtype=torch.float32)
+        dones_tensor = torch.tensor(dones, dtype=torch.float32)
 
-        # compute target Q-values using target network (Q_f)
-        q_next = self.network2.forward(torch.from_numpy(next_states).float())
-        q_next_max = torch.max(q_next, dim=1).values.detach().numpy()
-        targets = rewards + (1 - dones.astype(int)) * self.discount_factor * q_next_max
+        # Compute target Q-values
+        with torch.no_grad():
+            q_next = self.network2(next_states_tensor)
+            q_next_max = torch.max(q_next, dim=1)[0]
+            targets = rewards_tensor + (1 - dones_tensor) * self.discount_factor * q_next_max
 
-        # prepare target array
-        q_values = self.network.forward(torch.from_numpy(states).float()).detach().numpy()
-        for i in range(self.n):
-            q_values[i][actions[i]] = targets[i]
+        # Predicted Q-values
+        q_values = self.network(states_tensor)
+        q_pred = q_values.gather(1, actions_tensor.view(-1, 1)).squeeze()
 
+        loss = torch.nn.functional.mse_loss(q_pred, targets)
 
-
-        # convert states and q_values to tensors
-        states_tensor = torch.from_numpy(states).float()
-        targets_tensor = torch.from_numpy(q_values).float()
-
-        # clear previous gradients
         self.network.optimizer.zero_grad()
-
-        # forward pass
-        predictions = self.network(states_tensor)
-
-        # compute loss (mean squared error)
-        loss = torch.nn.functional.mse_loss(predictions, targets_tensor)
-
-        # backward pass and optimizer step
         loss.backward()
         self.network.optimizer.step()
+
 
         self.update_counter += 1
         if self.update_counter % self.target_update_freq == 0:
@@ -185,7 +173,7 @@ class MyAgent:
 
     def REWARD(self, state: dict, done_type: str) -> float:
         if done_type == 'not_done':
-            return 1.0  # small reward for staying alive
+            return 0.1  # small reward for staying alive
         elif done_type == 'hit_pipe':
             return -1.0
         elif done_type == 'off_screen':
@@ -241,10 +229,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # bare-bone code to train your agent (you may extend this part as well, we won't run your agent training code)
-    # env = FlappyBirdEnv(config_file_path='config.yml', show_screen=True, level=args.level, game_length=10)
-    # agent = MyAgent(show_screen=True)
+    # env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=args.level, game_length=10)
+    env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=1)
     agent = MyAgent(show_screen=False)
-    env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=1, game_length=10)
 
     episodes = 10000
 
