@@ -138,7 +138,7 @@ class MyAgent:
         states, actions, rewards, next_states, dones = zip(*batch)
 
         states_tensor = torch.from_numpy(np.array(states)).float()
-        next_states_tensor = torch.tensor(next_states, dtype=torch.float32)
+        next_states_tensor = torch.from_numpy(np.array(next_states)).float()
         actions_tensor = torch.tensor(actions, dtype=torch.int64)
         rewards_tensor = torch.tensor(rewards, dtype=torch.float32)
         dones_tensor = torch.tensor(dones, dtype=torch.float32)
@@ -230,8 +230,9 @@ if __name__ == '__main__':
 
     # bare-bone code to train your agent (you may extend this part as well, we won't run your agent training code)
     # env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=args.level, game_length=10)
-    env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=1)
-    agent = MyAgent(show_screen=False)
+    env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=2)
+    agent = MyAgent(show_screen=False, load_model_path='my_model.ckpt')
+    # agent = MyAgent(show_screen=False)
 
     episodes = 10000
 
