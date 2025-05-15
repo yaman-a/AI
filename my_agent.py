@@ -1,8 +1,10 @@
 import numpy as np
 import pygame
+import torch
 from pytorch_mlp import MLPRegression
 import argparse
 from console import FlappyBirdEnv
+import random
 
 STUDENT_ID = 'a1234567'
 DEGREE = 'UG'  # or 'PG'
@@ -18,21 +20,45 @@ class MyAgent:
             self.mode = mode
 
         # modify these
-        self.storage = ...  # a data structure of your choice (D in the Algorithm 2)
+        self.storage = []  # a data structure of your choice (D in the Algorithm 2)
         # A neural network MLP model which can be used as Q
-        self.network = MLPRegression(input_dim=..., output_dim=..., learning_rate=...)
+        self.network = MLPRegression(input_dim=5, output_dim=2, learning_rate=1e-3)
         # network2 has identical structure to network1, network2 is the Q_f
-        self.network2 = MLPRegression(input_dim=..., output_dim=..., learning_rate=...)
+        self.network2 = MLPRegression(input_dim=5, output_dim=2, learning_rate=1e-3)
         # initialise Q_f's parameter by Q's, here is an example
         MyAgent.update_network_model(net_to_update=self.network2, net_as_source=self.network)
 
-        self.epsilon = ...  # probability ε in Algorithm 2
-        self.n = ...  # the number of samples you'd want to draw from the storage each time
-        self.discount_factor = ...  # γ in Algorithm 2
+        self.epsilon = 1.0  # probability ε in Algorithm 2
+        self.epsilon_min = 0.05
+        self.epsilon_decay = 0.995
+
+        self.n = 32  # the number of samples you'd want to draw from the storage each time
+        self.discount_factor = 0.99  # γ in Algorithm 2
+
+        self.prev_state = None
+        self.prev_action = None
 
         # do not modify this
         if load_model_path:
             self.load_model(load_model_path)
+    
+    def BUILD_STATE(self, state: dict) -> np.ndarray:
+        bird_y = state['bird_y'] / state['screen_height']
+        bird_velocity = state['bird_velocity'] / 10  # normalize, assume velocity ε [-10, 10]
+
+        # Pipe info
+        if state['pipes']:
+            next_pipe = state['pipes'][0]
+            pipe_x = next_pipe['x'] / state['screen_width']
+            pipe_top = next_pipe['top'] / state['screen_height']
+            pipe_bottom = next_pipe['bottom'] / state['screen_height']
+        else:
+            pipe_x = 1.0
+            pipe_top = 0.0
+            pipe_bottom = 1.0
+
+        return np.array([bird_y, bird_velocity, pipe_x, pipe_top, pipe_bottom], dtype=np.float32)
+
 
     
     def choose_action(self, state: dict, action_table: dict) -> int:
@@ -44,10 +70,25 @@ class MyAgent:
         Returns:
             action: the action code as specified by the action_table
         """
-        # following pseudocode to implement this function
-        a_t = ...
+
+        state_vec = self.BUILD_STATE(state)
+
+        # ε-greedy: explore or exploit
+        if self.mode == 'train' and np.random.rand() < self.epsilon:
+            # random action (explore)
+            a_t = np.random.choice(list(action_table.values())[:2])  # avoid 'quit_game'
+        else:
+            # predict Q-values and choose best action (exploit)
+            q_values = self.network.forward(torch.from_numpy(state_vec.reshape(1, -1)).float())
+            q_values_np = q_values.detach().numpy()  # detach from computation graph
+            a_t = int(np.argmax(q_values_np))
+
+
+        self.prev_state = state
+        self.prev_action = a_t
 
         return a_t
+
 
     def receive_after_action_observation(self, state: dict, action_table: dict) -> None:
         """
@@ -58,7 +99,79 @@ class MyAgent:
         Returns:
             None
         """
-        # following pseudocode to implement this function
+        if self.prev_state is None or self.prev_action is None:
+            return  # skip first step
+
+        s = self.BUILD_STATE(self.prev_state)
+        a = self.prev_action
+        s_next = self.BUILD_STATE(state)
+
+        done = state['done']
+        done_type = state['done_type']
+        r = self.REWARD(state, done_type)
+
+        # store (s, a, r, s') in memory
+        self.storage.append((s, a, r, s_next, done))
+
+        # only train in training mode and if we have enough data
+        if self.mode != 'train' or len(self.storage) < self.n:
+            return
+
+        # sample a minibatch
+        batch = random.sample(self.storage, k=self.n)
+
+        states, actions, rewards, next_states, dones = zip(*batch)
+
+        states = np.array(states)
+        next_states = np.array(next_states)
+        rewards = np.array(rewards)
+        dones = np.array(dones)
+
+        # compute target Q-values using target network (Q_f)
+        q_next = self.network2.forward(torch.from_numpy(next_states).float())
+        q_next_max = torch.max(q_next, dim=1).values.detach().numpy()
+        targets = rewards + (1 - dones.astype(int)) * self.discount_factor * q_next_max
+
+        # prepare target array
+        q_values = self.network.forward(torch.from_numpy(states).float()).detach().numpy()
+        for i in range(self.n):
+            q_values[i][actions[i]] = targets[i]
+
+
+
+        # convert states and q_values to tensors
+        states_tensor = torch.from_numpy(states).float()
+        targets_tensor = torch.from_numpy(q_values).float()
+
+        # clear previous gradients
+        self.network.optimizer.zero_grad()
+
+        # forward pass
+        predictions = self.network(states_tensor)
+
+        # compute loss (mean squared error)
+        loss = torch.nn.functional.mse_loss(predictions, targets_tensor)
+
+        # backward pass and optimizer step
+        loss.backward()
+        self.network.optimizer.step()
+
+
+        # forget old state/action
+        self.prev_state = None
+        self.prev_action = None
+
+    def REWARD(self, state: dict, done_type: str) -> float:
+        if done_type == 'not_done':
+            return 1.0
+        elif done_type == 'hit_pipe':
+            return -100.0
+        elif done_type == 'off_screen':
+            return -200.0
+        elif done_type == 'well_done':
+            return 100.0
+        return -1.0
+        
 
     def save_model(self, path: str = 'my_model.ckpt'):
         """
@@ -108,22 +221,28 @@ if __name__ == '__main__':
     env = FlappyBirdEnv(config_file_path='config.yml', show_screen=True, level=args.level, game_length=10)
     agent = MyAgent(show_screen=True)
     episodes = 10000
+
     for episode in range(episodes):
         env.play(player=agent)
 
-        # env.score has the score value from the last play
-        # env.mileage has the mileage value from the last play
-        print(env.score)
-        print(env.mileage)
+        print(f"Episode {episode} — Score: {env.score}, Mileage: {env.mileage}")
 
-        # store the best model based on your judgement
-        agent.save_model(path='my_model.ckpt')
+        # save model if it's good (you can customize this)
+        if env.score >= 5:
+            agent.save_model(path='my_model.ckpt')
 
-        # you'd want to clear the memory after one or a few episodes
-        ...
+        # update Q_f network every 10 episodes
+        if episode % 10 == 0:
+            MyAgent.update_network_model(agent.network2, agent.network)
 
-        # you'd want to update the fixed Q-target network (Q_f) with Q's model parameter after one or a few episodes
-        ...
+        # clear memory every 100 episodes
+        if episode % 100 == 0:
+            agent.storage.clear()
+
+        # decay epsilon
+        if agent.epsilon > agent.epsilon_min:
+            agent.epsilon *= agent.epsilon_decay
+
 
     # the below resembles how we evaluate your agent
     env2 = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=args.level)
