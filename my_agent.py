@@ -30,8 +30,8 @@ class MyAgent:
         MyAgent.update_network_model(net_to_update=self.network2, net_as_source=self.network)
 
         self.epsilon = 1.0  # probability ε in Algorithm 2
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.999
+        self.epsilon_min = 0.005
+        self.epsilon_decay = 0.9992
 
         self.n = 32  # the number of samples you'd want to draw from the storage each time
         self.discount_factor = 0.99  # γ in Algorithm 2
