@@ -7,7 +7,7 @@ from console import FlappyBirdEnv
 import random
 from collections import deque
 
-STUDENT_ID = 'a1234567'
+STUDENT_ID = 'a1884774'
 DEGREE = 'UG'  # or 'PG'
 
 
@@ -137,7 +137,7 @@ class MyAgent:
         batch = random.sample(self.storage, k=self.n)
         states, actions, rewards, next_states, dones = zip(*batch)
 
-        states_tensor = torch.tensor(states, dtype=torch.float32)
+        states_tensor = torch.from_numpy(np.array(states)).float()
         next_states_tensor = torch.tensor(next_states, dtype=torch.float32)
         actions_tensor = torch.tensor(actions, dtype=torch.int64)
         rewards_tensor = torch.tensor(rewards, dtype=torch.float32)
