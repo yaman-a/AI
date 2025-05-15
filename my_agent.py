@@ -5,8 +5,9 @@ from pytorch_mlp import MLPRegression
 import argparse
 from console import FlappyBirdEnv
 import random
+from collections import deque
 
-STUDENT_ID = 'a1234567'
+STUDENT_ID = 'a1884774'
 DEGREE = 'UG'  # or 'PG'
 
 
@@ -20,11 +21,11 @@ class MyAgent:
             self.mode = mode
 
         # modify these
-        self.storage = []  # a data structure of your choice (D in the Algorithm 2)
+        self.storage = deque(maxlen=10000)  # a data structure of your choice (D in the Algorithm 2)
         # A neural network MLP model which can be used as Q
-        self.network = MLPRegression(input_dim=5, output_dim=2, learning_rate=1e-3)
+        self.network = MLPRegression(input_dim=3, output_dim=2, learning_rate=1e-3)
         # network2 has identical structure to network1, network2 is the Q_f
-        self.network2 = MLPRegression(input_dim=5, output_dim=2, learning_rate=1e-3)
+        self.network2 = MLPRegression(input_dim=3, output_dim=2, learning_rate=1e-3)
         # initialise Q_f's parameter by Q's, here is an example
         MyAgent.update_network_model(net_to_update=self.network2, net_as_source=self.network)
 
@@ -35,8 +36,15 @@ class MyAgent:
         self.n = 32  # the number of samples you'd want to draw from the storage each time
         self.discount_factor = 0.99  # γ in Algorithm 2
 
+        self.target_update_freq = 20  # every N updates, sync the target network
+        self.update_counter = 0
+
+
         self.prev_state = None
         self.prev_action = None
+
+        if self.mode == 'eval':
+            self.epsilon = 0.0
 
         # do not modify this
         if load_model_path:
@@ -44,20 +52,28 @@ class MyAgent:
     
     def BUILD_STATE(self, state: dict) -> np.ndarray:
         bird_y = state['bird_y'] / state['screen_height']
-        bird_velocity = state['bird_velocity'] / 10  # normalize, assume velocity ε [-10, 10]
+        bird_velocity = state['bird_velocity'] / 10.0  # assuming range [-10, 10]
 
-        # Pipe info
         if state['pipes']:
             next_pipe = state['pipes'][0]
-            pipe_x = next_pipe['x'] / state['screen_width']
-            pipe_top = next_pipe['top'] / state['screen_height']
-            pipe_bottom = next_pipe['bottom'] / state['screen_height']
-        else:
-            pipe_x = 1.0
-            pipe_top = 0.0
-            pipe_bottom = 1.0
+            pipe_x = next_pipe['x']
+            pipe_top = next_pipe['top']
+            pipe_bottom = next_pipe['bottom']
+            pipe_center_y = (pipe_top + pipe_bottom) / 2
 
-        return np.array([bird_y, bird_velocity, pipe_x, pipe_top, pipe_bottom], dtype=np.float32)
+            horiz_dist = (pipe_x - state['bird_x']) / state['screen_width']
+            vert_dist = (state['bird_y'] - pipe_center_y) / state['screen_height']
+        else:
+            horiz_dist = 1.0  # assume pipe far to the right
+            vert_dist = 0.0   # neutral vertical offset
+
+        return np.array([
+            bird_velocity,
+            horiz_dist,
+            vert_dist
+        ], dtype=np.float32)
+
+
 
 
     
@@ -156,21 +172,28 @@ class MyAgent:
         loss.backward()
         self.network.optimizer.step()
 
+        self.update_counter += 1
+        if self.update_counter % self.target_update_freq == 0:
+            MyAgent.update_network_model(net_to_update=self.network2, net_as_source=self.network)
 
         # forget old state/action
         self.prev_state = None
         self.prev_action = None
 
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
     def REWARD(self, state: dict, done_type: str) -> float:
         if done_type == 'not_done':
-            return 1.0
+            return 1.0  # small reward for staying alive
         elif done_type == 'hit_pipe':
-            return -100.0
+            return -1.0
         elif done_type == 'off_screen':
-            return -200.0
+            return -5.0  # slightly worse
         elif done_type == 'well_done':
-            return 100.0
-        return -1.0
+            return 10.0  # optional for capped runs
+        return -0.1
+
         
 
     def save_model(self, path: str = 'my_model.ckpt'):
@@ -218,30 +241,27 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # bare-bone code to train your agent (you may extend this part as well, we won't run your agent training code)
-    env = FlappyBirdEnv(config_file_path='config.yml', show_screen=True, level=args.level, game_length=10)
-    agent = MyAgent(show_screen=True)
+    # env = FlappyBirdEnv(config_file_path='config.yml', show_screen=True, level=args.level, game_length=10)
+    # agent = MyAgent(show_screen=True)
+    agent = MyAgent(show_screen=False)
+    env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=1, game_length=10)
+
     episodes = 10000
+
+    best_score = 0
+    best_mileage = 0
 
     for episode in range(episodes):
         env.play(player=agent)
 
         print(f"Episode {episode} — Score: {env.score}, Mileage: {env.mileage}")
 
-        # save model if it's good (you can customize this)
-        if env.score >= 5:
+        # Save best model by score or mileage
+        if env.score > best_score or (env.score == best_score and env.mileage > best_mileage):
+            best_score = env.score
+            best_mileage = env.mileage
             agent.save_model(path='my_model.ckpt')
-
-        # update Q_f network every 10 episodes
-        if episode % 10 == 0:
-            MyAgent.update_network_model(agent.network2, agent.network)
-
-        # clear memory every 100 episodes
-        if episode % 100 == 0:
-            agent.storage.clear()
-
-        # decay epsilon
-        if agent.epsilon > agent.epsilon_min:
-            agent.epsilon *= agent.epsilon_decay
+            print(f"✅ Saved new best model — Score: {best_score}, Mileage: {best_mileage}")
 
 
     # the below resembles how we evaluate your agent
