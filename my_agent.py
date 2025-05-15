@@ -30,8 +30,8 @@ class MyAgent:
         MyAgent.update_network_model(net_to_update=self.network2, net_as_source=self.network)
 
         self.epsilon = 1.0  # probability ε in Algorithm 2
-        self.epsilon_min = 0.05
-        self.epsilon_decay = 0.995
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.999
 
         self.n = 32  # the number of samples you'd want to draw from the storage each time
         self.discount_factor = 0.99  # γ in Algorithm 2
@@ -230,9 +230,9 @@ if __name__ == '__main__':
 
     # bare-bone code to train your agent (you may extend this part as well, we won't run your agent training code)
     # env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=args.level, game_length=10)
-    env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=3)
-    agent = MyAgent(show_screen=False, load_model_path='my_model.ckpt')
-    # agent = MyAgent(show_screen=False)
+    env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=6)
+    # agent = MyAgent(show_screen=False, load_model_path='my_model.ckpt')
+    agent = MyAgent(show_screen=False)
 
     episodes = 10000
 
