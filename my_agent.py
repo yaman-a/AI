@@ -173,7 +173,7 @@ class MyAgent:
 
     def REWARD(self, state: dict, done_type: str) -> float:
         if done_type == 'not_done':
-            return 0.1  # small reward for staying alive
+            return 0.2  # small reward for staying alive
         elif done_type == 'hit_pipe':
             return -1.0
         elif done_type == 'off_screen':
@@ -230,7 +230,7 @@ if __name__ == '__main__':
 
     # bare-bone code to train your agent (you may extend this part as well, we won't run your agent training code)
     # env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=args.level, game_length=10)
-    env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=2)
+    env = FlappyBirdEnv(config_file_path='config.yml', show_screen=False, level=3)
     agent = MyAgent(show_screen=False, load_model_path='my_model.ckpt')
     # agent = MyAgent(show_screen=False)
 
