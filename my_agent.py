@@ -249,7 +249,7 @@ if __name__ == '__main__':
             best_score = env.score
             best_mileage = env.mileage
             agent.save_model(path='my_model.ckpt')
-            print(f"✅ Saved new best model — Score: {best_score}, Mileage: {best_mileage}")
+            print(f"------ Saved new best model — Score: {best_score}, Mileage: {best_mileage}")
 
 
     # the below resembles how we evaluate your agent
