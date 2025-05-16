@@ -29,7 +29,7 @@ class MyAgent:
         # initialise Q_f's parameter by Q's, here is an example
         MyAgent.update_network_model(net_to_update=self.network2, net_as_source=self.network)
 
-        self.epsilon = 1.0  # probability ε in Algorithm 2
+        self.epsilon = 0.1  # probability ε in Algorithm 2
         self.epsilon_min = 0.005
         self.epsilon_decay = 0.9992
 
@@ -173,7 +173,10 @@ class MyAgent:
 
     def REWARD(self, state: dict, done_type: str) -> float:
         if done_type == 'not_done':
-            return 0.2  # small reward for staying alive
+            pipe = state['pipes'][0] if state['pipes'] else {'top': 0, 'bottom': state['screen_height']}
+            pipe_center_y = (pipe['top'] + pipe['bottom']) / 2
+            vertical_error = abs(state['bird_y'] - pipe_center_y) / state['screen_height']
+            return 1.0 - vertical_error  # more reward if better aligned
         elif done_type == 'hit_pipe':
             return -1.0
         elif done_type == 'off_screen':
