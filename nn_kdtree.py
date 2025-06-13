@@ -89,11 +89,7 @@ def build_KDtree(points, labels, depth=0, is_root=None):
         if points[i][axis] < medihan_val:
             left_points.append(points[i])
             left_labels.append(labels[i])
-        elif points[i][axis] > medihan_val:
-            right_points.append(points[i])
-            right_labels.append(labels[i])
-        else:
-            # if equal to median, place in right subtree
+        elif points[i][axis] >= medihan_val:
             right_points.append(points[i])
             right_labels.append(labels[i])
 
@@ -103,8 +99,8 @@ def build_KDtree(points, labels, depth=0, is_root=None):
     right_labels = np.array(right_labels)
 
     if is_root:
-        print("." * (depth + 1) + f"l{len(left_points)}")
-        print("." * (depth + 1) + f"r{len(right_points)}")
+        print("." * (depth) + f"l{len(left_points)}")
+        print("." * (depth) + f"r{len(right_points)}")
 
     node.left = build_KDtree(left_points, left_labels, depth + 1, is_root=False)
     node.right = build_KDtree(right_points, right_labels, depth + 1, is_root=False)
@@ -120,6 +116,42 @@ def build_KDtree(points, labels, depth=0, is_root=None):
     #     right=right_child
     # )
 
+# she eculid on my distance
+def euclidean_distance(p1, p2):
+    return np.linalg.norm(p1 - p2)
+
+def search_KDtree(node, target, best=None):
+    if node is None:
+        return best
+    
+    # how far away the node is
+    dihstance = euclidean_distance(target, node.point)
+
+    # update best if closer
+    if best is None or dihstance < best[1]:
+        best = (node, dihstance)
+
+    # leaf, stop here
+    if node.left is None and node.right is None:
+        return best
+
+    # decide which side to go throguh first
+    axis = node.split_dim
+    if target[axis] < node.split_val:
+        next_branch = node.left
+        other_branch = node.right
+    else:
+        next_branch = node.right
+        other_branch = node.left
+
+    # recursive search on the next branch
+    best = search_KDtree(next_branch, target, best)
+
+    # hello from the other side
+    if abs(target[axis] - node.split_val) < best[1]:
+        best = search_KDtree(other_branch, target, best)
+
+    return best
     
 
 def main():
@@ -134,8 +166,12 @@ def main():
 
     # build kevin durant trees (with the even split)
     lorax = build_KDtree(X_train, y_train, depth=chesta, is_root=True)
-    
+
     # 1-nn goes here after
+    # predict wine quality for each test point
+    for tungtung in X_test:
+        nearest_node, _ = search_KDtree(lorax, tungtung)
+        print(int(nearest_node.label))
 
 
 if __name__ == "__main__":
