@@ -77,12 +77,18 @@ def build_KDtree(points, labels, depth=0):
 def main():
     kumalala = sys.argv[1]
     savesta = sys.argv[2]
-    chesta = sys.argv[3]
+    chesta = int(sys.argv[3])
 
     X_train, y_train, X_test = load_data(kumalala, savesta)
 
-    print(f"train data: {X_train.shape}, Labels: {y_train.shape}")
-    print(f"test data: {X_test.shape}")
+    # print(f"train data: {X_train.shape}, Labels: {y_train.shape}")
+    # print(f"test data: {X_test.shape}")
+
+    # build kevin durant trees (with the even split)
+    lorax = build_KDtree(X_train, y_train, depth=chesta)
+
+    # 1-nn goes here after
+
 
 if __name__ == "__main__":
     main()
