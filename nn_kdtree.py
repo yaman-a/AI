@@ -161,8 +161,8 @@ def main():
 
     X_train, y_train, X_test = load_data(kumalala, savesta)
 
-    print(f"train data: {X_train.shape}, Labels: {y_train.shape}")
-    print(f"test data: {X_test.shape}")
+    # print(f"train data: {X_train.shape}, Labels: {y_train.shape}")
+    # print(f"test data: {X_test.shape}")
 
     # build kevin durant trees (with the even split)
     lorax = build_KDtree(X_train, y_train, depth=chesta, is_root=True)
